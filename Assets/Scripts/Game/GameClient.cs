@@ -79,6 +79,7 @@ namespace Sandglass.Game
             menu.OnCancel = LeaveToMenu;
             menu.Show();
             Sfx.StartWind();
+            Fx.AmbientDust(cam.transform);
             StartCoroutine(PollStats());
         }
 

@@ -156,6 +156,42 @@ namespace Sandglass.Game
             return ps;
         }
 
+        /// <summary>Sunlit dust drifting on the wind around the viewer.</summary>
+        public static void AmbientDust(Transform follow)
+        {
+            var ps = MakeSystem("AmbientDust", new Color(1.3f, 1.05f, 0.8f, 0.55f), 0.2f, 0.07f, 9f, -0.01f);
+            ps.transform.SetParent(follow, false);
+            ps.transform.localPosition = Vector3.zero;
+            ps.transform.localRotation = Quaternion.identity;
+            var main = ps.main;
+            main.loop = true;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.025f, 0.07f);
+            var emission = ps.emission;
+            emission.enabled = true;
+            emission.rateOverTime = 45f;
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(36f, 9f, 36f);
+            var vel = ps.velocityOverLifetime;
+            vel.enabled = true;
+            vel.space = ParticleSystemSimulationSpace.World;
+            vel.x = new ParticleSystem.MinMaxCurve(0.6f, 1.4f);
+            vel.y = new ParticleSystem.MinMaxCurve(-0.1f, 0.15f);
+            vel.z = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f);
+            var noise = ps.noise;
+            noise.enabled = true;
+            noise.strength = 0.4f;
+            noise.frequency = 0.3f;
+            var col = ps.colorOverLifetime;
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                      new[] { new GradientAlphaKey(0, 0), new GradientAlphaKey(1, 0.2f), new GradientAlphaKey(1, 0.8f), new GradientAlphaKey(0, 1) });
+            col.color = g;
+            var sz = ps.sizeOverLifetime;
+            sz.enabled = false;
+            ps.Play();
+        }
+
         /// <summary>Puff of dust where a bullet hits stone or sand.</summary>
         public static void Impact(Vector3 point, Vector3 normal)
         {

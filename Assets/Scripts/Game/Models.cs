@@ -23,7 +23,8 @@ namespace Sandglass.Game
         public static GameObject Part(PrimitiveType type, Transform parent, Vector3 pos, Vector3 scale, Material m, Vector3 euler = default)
         {
             var g = GameObject.CreatePrimitive(type);
-            Object.Destroy(g.GetComponent<Collider>());
+            if (Application.isPlaying) Object.Destroy(g.GetComponent<Collider>());
+            else Object.DestroyImmediate(g.GetComponent<Collider>()); // editor previews
             g.transform.SetParent(parent, false);
             g.transform.localPosition = pos;
             g.transform.localEulerAngles = euler;
@@ -48,7 +49,7 @@ namespace Sandglass.Game
             metal.SetFloat("_Smoothness", 0.55f);
             metal.SetFloat("_Metallic", 0.6f);
             var poly = Fx.Tint("M_Lit", Polymer);
-            var glow = Fx.Tint("M_Lit", Accent, Accent * 3f);
+            var glow = Fx.Tint("M_Lit", Accent, Accent * 1.6f);
             var root = new GameObject(weapon == 0 ? "Rifle" : "Pistol").transform;
             root.SetParent(parent, false);
             Transform muzzle;
@@ -62,7 +63,11 @@ namespace Sandglass.Game
                 Part(PrimitiveType.Cube, root, new Vector3(0, -0.1f, -0.13f), new Vector3(0.046f, 0.12f, 0.05f), poly, new Vector3(-15, 0, 0));
                 Part(PrimitiveType.Cube, root, new Vector3(0, -0.02f, -0.31f), new Vector3(0.056f, 0.1f, 0.22f), poly);
                 Part(PrimitiveType.Cube, root, new Vector3(0, 0.09f, 0.02f), new Vector3(0.05f, 0.05f, 0.13f), metal);
-                Part(PrimitiveType.Cube, root, new Vector3(0, 0.09f, -0.047f), new Vector3(0.034f, 0.034f, 0.004f), glow);
+                var lens = Fx.Tint("M_Lit", new Color(0.05f, 0.08f, 0.1f));
+                lens.SetFloat("_Smoothness", 0.95f);
+                Part(PrimitiveType.Cube, root, new Vector3(0, 0.09f, -0.047f), new Vector3(0.036f, 0.036f, 0.004f), lens);
+                var dot = Fx.Tint("M_Lit", new Color(1f, 0.3f, 0.2f), new Color(6f, 1.2f, 0.6f));
+                Part(PrimitiveType.Cube, root, new Vector3(0, 0.09f, -0.05f), new Vector3(0.004f, 0.004f, 0.002f), dot);
                 Part(PrimitiveType.Cube, root, new Vector3(0.036f, 0.01f, 0.33f), new Vector3(0.004f, 0.012f, 0.22f), glow);
                 Part(PrimitiveType.Cube, root, new Vector3(-0.036f, 0.01f, 0.33f), new Vector3(0.004f, 0.012f, 0.22f), glow);
                 muzzle = Pivot("Muzzle", root, new Vector3(0, 0.02f, 0.75f));
@@ -82,47 +87,75 @@ namespace Sandglass.Game
             return muzzle;
         }
 
+        /// <summary>A capsule spanning two points, for limbs.</summary>
+        static void Limb(Transform parent, Vector3 a, Vector3 b, float radius, Material m)
+        {
+            var g = Part(PrimitiveType.Capsule, parent, (a + b) * 0.5f, Vector3.one, m);
+            var d = b - a;
+            g.transform.localRotation = Quaternion.FromToRotation(Vector3.up, d);
+            g.transform.localScale = new Vector3(radius * 2f, d.magnitude * 0.5f + radius * 0.5f, radius * 2f);
+        }
+
         /// <summary>Builds a soldier standing on its root (feet at y = 0).</summary>
         public static AvatarRig Soldier(Transform parent, Color accent)
         {
             var armor = Fx.Tint("M_Lit", Armor);
-            armor.SetFloat("_Smoothness", 0.4f);
+            armor.SetFloat("_Smoothness", 0.45f);
             var cloth = Fx.Tint("M_Lit", Cloth);
-            var wrap = Fx.Tint("M_Lit", new Color(0.72f, 0.6f, 0.44f));
-            var visor = Fx.Tint("M_Lit", accent, accent * 4f);
+            var wrap = Fx.Tint("M_Lit", new Color(0.74f, 0.62f, 0.46f));
+            var skin = Fx.Tint("M_Lit", new Color(0.55f, 0.38f, 0.28f));
+            var visor = Fx.Tint("M_Lit", accent, accent * 2.2f);
 
             var rig = new AvatarRig();
             rig.Root = new GameObject("Soldier").transform;
             rig.Root.SetParent(parent, false);
 
-            rig.LegL = Pivot("LegL", rig.Root, new Vector3(-0.12f, 0.9f, 0));
-            rig.LegR = Pivot("LegR", rig.Root, new Vector3(0.12f, 0.9f, 0));
+            rig.LegL = Pivot("LegL", rig.Root, new Vector3(-0.13f, 0.92f, 0));
+            rig.LegR = Pivot("LegR", rig.Root, new Vector3(0.13f, 0.92f, 0));
             foreach (var leg in new[] { rig.LegL, rig.LegR })
             {
-                Part(PrimitiveType.Capsule, leg, new Vector3(0, -0.42f, 0), new Vector3(0.18f, 0.42f, 0.18f), cloth);
-                Part(PrimitiveType.Cube, leg, new Vector3(0, -0.47f, 0.02f), new Vector3(0.17f, 0.12f, 0.16f), armor);
-                Part(PrimitiveType.Cube, leg, new Vector3(0, -0.84f, 0.05f), new Vector3(0.16f, 0.12f, 0.26f), armor);
+                Limb(leg, new Vector3(0, -0.05f, 0), new Vector3(0, -0.48f, 0.02f), 0.115f, cloth);
+                Limb(leg, new Vector3(0, -0.5f, 0.02f), new Vector3(0, -0.82f, -0.02f), 0.1f, cloth);
+                Part(PrimitiveType.Cube, leg, new Vector3(0, -0.5f, 0.07f), new Vector3(0.17f, 0.15f, 0.08f), armor);
+                Part(PrimitiveType.Cube, leg, new Vector3(0, -0.86f, 0.05f), new Vector3(0.18f, 0.13f, 0.3f), armor);
             }
-            Part(PrimitiveType.Cube, rig.Root, new Vector3(0, 0.96f, 0), new Vector3(0.38f, 0.18f, 0.24f), armor);
+            Part(PrimitiveType.Cube, rig.Root, new Vector3(0, 0.97f, 0), new Vector3(0.42f, 0.2f, 0.26f), armor);
+            Part(PrimitiveType.Cube, rig.Root, new Vector3(0.22f, 0.92f, 0.04f), new Vector3(0.08f, 0.14f, 0.14f), cloth);
 
-            rig.Torso = Pivot("Torso", rig.Root, new Vector3(0, 1.02f, 0));
-            Part(PrimitiveType.Cube, rig.Torso, new Vector3(0, 0.26f, 0), new Vector3(0.42f, 0.5f, 0.26f), cloth);
-            Part(PrimitiveType.Cube, rig.Torso, new Vector3(0, 0.33f, 0.1f), new Vector3(0.45f, 0.32f, 0.1f), armor);
-            Part(PrimitiveType.Cube, rig.Torso, new Vector3(0, 0.3f, -0.18f), new Vector3(0.32f, 0.34f, 0.13f), armor);
-            Part(PrimitiveType.Cube, rig.Torso, new Vector3(0, 0.3f, 0.156f), new Vector3(0.3f, 0.02f, 0.01f), visor);
-            Part(PrimitiveType.Cylinder, rig.Torso, new Vector3(0, 0.53f, 0), new Vector3(0.24f, 0.05f, 0.24f), wrap);
-            // Shoulders and arms reaching to the gun.
-            Part(PrimitiveType.Sphere, rig.Torso, new Vector3(-0.25f, 0.46f, 0), Vector3.one * 0.17f, armor);
-            Part(PrimitiveType.Sphere, rig.Torso, new Vector3(0.25f, 0.46f, 0), Vector3.one * 0.17f, armor);
-            Part(PrimitiveType.Capsule, rig.Torso, new Vector3(0.2f, 0.36f, 0.16f), new Vector3(0.11f, 0.2f, 0.11f), cloth, new Vector3(65, -20, 0));
-            Part(PrimitiveType.Capsule, rig.Torso, new Vector3(-0.17f, 0.34f, 0.24f), new Vector3(0.11f, 0.24f, 0.11f), cloth, new Vector3(75, 35, 0));
+            rig.Torso = Pivot("Torso", rig.Root, new Vector3(0, 1.04f, 0));
+            Part(PrimitiveType.Cube, rig.Torso, new Vector3(0, 0.25f, 0), new Vector3(0.46f, 0.5f, 0.28f), cloth);
+            Part(PrimitiveType.Cube, rig.Torso, new Vector3(0, 0.32f, 0.11f), new Vector3(0.5f, 0.36f, 0.11f), armor);
+            Part(PrimitiveType.Cube, rig.Torso, new Vector3(0, 0.3f, -0.19f), new Vector3(0.36f, 0.4f, 0.14f), armor);
+            Part(PrimitiveType.Cube, rig.Torso, new Vector3(0, 0.28f, 0.17f), new Vector3(0.34f, 0.025f, 0.01f), visor);
+            Part(PrimitiveType.Cube, rig.Torso, new Vector3(-0.13f, 0.12f, 0.15f), new Vector3(0.1f, 0.12f, 0.06f), armor);
+            Part(PrimitiveType.Cube, rig.Torso, new Vector3(0.01f, 0.12f, 0.15f), new Vector3(0.1f, 0.12f, 0.06f), armor);
+            Part(PrimitiveType.Cylinder, rig.Torso, new Vector3(0, 0.53f, 0), new Vector3(0.27f, 0.06f, 0.27f), wrap);
+
+            // Shoulders and arms holding the rifle at the chest.
+            var shL = new Vector3(-0.29f, 0.45f, 0);
+            var shR = new Vector3(0.29f, 0.45f, 0);
+            Part(PrimitiveType.Sphere, rig.Torso, shL, new Vector3(0.2f, 0.17f, 0.22f), armor);
+            Part(PrimitiveType.Sphere, rig.Torso, shR, new Vector3(0.2f, 0.17f, 0.22f), armor);
+            var gunPivot = Pivot("GunPivot", rig.Torso, new Vector3(0.1f, 0.33f, 0.26f));
+            var grip = gunPivot.localPosition + new Vector3(0, -0.1f, -0.13f);
+            var fore = gunPivot.localPosition + new Vector3(0, -0.02f, 0.3f);
+            var elbowR = new Vector3(0.3f, 0.2f, 0.06f);
+            var elbowL = new Vector3(-0.2f, 0.18f, 0.24f);
+            Limb(rig.Torso, shR, elbowR, 0.075f, cloth);
+            Limb(rig.Torso, elbowR, grip, 0.065f, cloth);
+            Limb(rig.Torso, shL, elbowL, 0.075f, cloth);
+            Limb(rig.Torso, elbowL, fore, 0.065f, cloth);
+            Part(PrimitiveType.Sphere, rig.Torso, grip, Vector3.one * 0.085f, armor);
+            Part(PrimitiveType.Sphere, rig.Torso, fore, Vector3.one * 0.085f, armor);
 
             rig.Head = Pivot("Head", rig.Torso, new Vector3(0, 0.58f, 0));
-            Part(PrimitiveType.Sphere, rig.Head, new Vector3(0, 0.12f, 0), Vector3.one * 0.24f, wrap);
-            Part(PrimitiveType.Sphere, rig.Head, new Vector3(0, 0.17f, -0.015f), new Vector3(0.29f, 0.23f, 0.3f), armor);
-            Part(PrimitiveType.Cube, rig.Head, new Vector3(0, 0.12f, 0.115f), new Vector3(0.21f, 0.055f, 0.04f), visor);
+            Part(PrimitiveType.Sphere, rig.Head, new Vector3(0, 0.1f, 0.01f), new Vector3(0.21f, 0.24f, 0.22f), skin);
+            Part(PrimitiveType.Cylinder, rig.Head, new Vector3(0, 0.03f, 0.01f), new Vector3(0.23f, 0.05f, 0.23f), wrap);
+            Part(PrimitiveType.Sphere, rig.Head, new Vector3(0, 0.17f, -0.01f), new Vector3(0.3f, 0.24f, 0.31f), armor);
+            Part(PrimitiveType.Cube, rig.Head, new Vector3(0, 0.13f, 0.12f), new Vector3(0.22f, 0.06f, 0.05f), visor);
+            Part(PrimitiveType.Cube, rig.Head, new Vector3(0.13f, 0.13f, 0.02f), new Vector3(0.03f, 0.1f, 0.12f), armor);
+            Part(PrimitiveType.Cube, rig.Head, new Vector3(-0.13f, 0.13f, 0.02f), new Vector3(0.03f, 0.1f, 0.12f), armor);
 
-            var gunPivot = Pivot("GunPivot", rig.Torso, new Vector3(0.06f, 0.32f, 0.3f));
             rig.Muzzle = Gun(gunPivot, 0, false);
             rig.Gun = gunPivot;
             return rig;

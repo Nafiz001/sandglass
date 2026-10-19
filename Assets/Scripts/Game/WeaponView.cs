@@ -8,8 +8,10 @@ namespace Sandglass.Game
     /// </summary>
     public class WeaponView : MonoBehaviour
     {
-        static readonly Vector3 HipPos = new Vector3(0.16f, -0.135f, 0.36f);
-        static readonly Vector3[] AdsPos = { new Vector3(0f, -0.09f, 0.24f), new Vector3(0f, -0.088f, 0.3f) };
+        static readonly Vector3 HipPos = new Vector3(0.2f, -0.19f, 0.44f);
+        const float GunScale = 0.8f;
+        // Positions that put each gun's sight on the camera axis (sight height x GunScale).
+        static readonly Vector3[] AdsPos = { new Vector3(0f, -0.072f, 0.22f), new Vector3(0f, -0.047f, 0.28f) };
 
         Transform sway, kick;
         readonly Transform[] guns = new Transform[2];
@@ -38,6 +40,7 @@ namespace Sandglass.Game
             {
                 var holder = new GameObject("Holder" + i).transform;
                 holder.SetParent(kick, false);
+                holder.localScale = Vector3.one * GunScale;
                 muzzles[i] = Models.Gun(holder, i, true);
                 guns[i] = holder;
             }
