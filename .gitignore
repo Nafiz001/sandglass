@@ -46,3 +46,6 @@ sysinfo.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Editor screenshots
+/[Cc]aptures/
