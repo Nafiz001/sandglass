@@ -52,7 +52,13 @@ namespace Sandglass.Game
             {
                 var q = NetSocket.PageQuery("server");
                 if (!string.IsNullOrEmpty(q)) return q;
-                return Application.isEditor ? EditorServer : DefaultServer;
+                if (Application.isEditor)
+                {
+                    // PlayerPrefs "serverOverride" points the editor at another server, e.g. production.
+                    var o = PlayerPrefs.GetString("serverOverride", "");
+                    return o != "" ? o : EditorServer;
+                }
+                return DefaultServer;
             }
         }
 

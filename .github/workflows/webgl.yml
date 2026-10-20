@@ -1,12 +1,12 @@
 name: WebGL
 
-# Builds the browser game with GameCI and deploys it to Vercel. Needs these
-# repository secrets; without them the workflow reports that and stops:
+# Builds the browser game with GameCI and copies it to the Oracle server,
+# where Caddy serves it beside the match server. Needs these repository
+# secrets; without them the workflow reports that and stops:
 #   UNITY_LICENSE   contents of a Unity Personal .ulf licence file
 #   UNITY_EMAIL     Unity account email
 #   UNITY_PASSWORD  Unity account password
-#   VERCEL_TOKEN    a Vercel access token
-#   VERCEL_ORG_ID, VERCEL_PROJECT_ID   from .vercel/project.json after `vercel link`
+#   DEPLOY_SSH_KEY  a private key the server's ubuntu user accepts
 
 on:
   push:
@@ -23,12 +23,12 @@ jobs:
       - id: secrets
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
-          if [ -n "$UNITY_LICENSE" ] && [ -n "$VERCEL_TOKEN" ]; then
+          if [ -n "$UNITY_LICENSE" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::Unity or Vercel secrets are not set; skipping the WebGL build."
+            echo "::notice::Unity or deploy secrets are not set; skipping the WebGL build."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -56,10 +56,13 @@ jobs:
           targetPlatform: WebGL
           buildMethod: Sandglass.EditorTools.BuildWebGL.Build
 
-      - name: Deploy to Vercel
-        working-directory: Builds/WebGL
+      - name: Copy to the server
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN"
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ubuntu@130.210.37.18
+        run: |
+          install -m 600 /dev/null ~/key && printf '%s\n' "$DEPLOY_SSH_KEY" > ~/key
+          tar czf - -C Builds/WebGL index.html Build | ssh -i ~/key -o StrictHostKeyChecking=accept-new "$HOST" '
+            set -e; d=/opt/portfolio/vernissage/home/sandglass
+            rm -rf $d.new && mkdir -p $d.new && tar xzf - -C $d.new
+            rm -rf $d.old; [ -d $d ] && mv $d $d.old; mv $d.new $d; rm -rf $d.old'

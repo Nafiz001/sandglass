@@ -49,3 +49,7 @@ Thumbs.db
 
 # Editor screenshots
 /[Cc]aptures/
+
+# Written by the build
+/[Aa]ssets/[Rr]esources/PerformanceTestRun*
+/[Dd]ata/
