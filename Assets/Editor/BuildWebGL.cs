@@ -6,8 +6,9 @@ using UnityEngine;
 namespace Sandglass.EditorTools
 {
     /// <summary>
-    /// Builds the browser version to Builds/WebGL with Brotli compression and
-    /// writes the vercel.json that serves the compressed files correctly.
+    /// Builds the browser version to Builds/WebGL for GitHub Pages. Pages
+    /// cannot set Content-Encoding, so the Brotli files carry Unity's
+    /// decompression fallback and the loader unpacks them in the browser.
     /// Also callable from the command line:
     ///   Unity -batchmode -quit -projectPath . -executeMethod Sandglass.EditorTools.BuildWebGL.Build
     /// </summary>
@@ -20,7 +21,7 @@ namespace Sandglass.EditorTools
         {
             PlayerSettings.WebGL.template = "PROJECT:Sandglass";
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
-            PlayerSettings.WebGL.decompressionFallback = false;
+            PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;
             PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
             PlayerSettings.WebGL.showDiagnostics = false;
@@ -41,27 +42,9 @@ namespace Sandglass.EditorTools
                 if (Application.isBatchMode) EditorApplication.Exit(1);
                 return;
             }
-            File.WriteAllText(Path.Combine(OutputDir, "vercel.json"), VercelConfig);
+            // Pages would otherwise run the files through Jekyll.
+            File.WriteAllText(Path.Combine(OutputDir, ".nojekyll"), "");
             File.WriteAllText(Path.Combine(OutputDir, "build-done.txt"), System.DateTime.UtcNow.ToString("o"));
         }
-
-        // Unity's Brotli files must go out with Content-Encoding: br and their
-        // real type, or the loader refuses them.
-        const string VercelConfig = @"{
-  ""headers"": [
-    { ""source"": ""/Build/(.*)\\.js\\.br"", ""headers"": [
-      { ""key"": ""Content-Encoding"", ""value"": ""br"" },
-      { ""key"": ""Content-Type"", ""value"": ""application/javascript"" } ] },
-    { ""source"": ""/Build/(.*)\\.wasm\\.br"", ""headers"": [
-      { ""key"": ""Content-Encoding"", ""value"": ""br"" },
-      { ""key"": ""Content-Type"", ""value"": ""application/wasm"" } ] },
-    { ""source"": ""/Build/(.*)\\.data\\.br"", ""headers"": [
-      { ""key"": ""Content-Encoding"", ""value"": ""br"" },
-      { ""key"": ""Content-Type"", ""value"": ""application/octet-stream"" } ] },
-    { ""source"": ""/Build/(.*)"", ""headers"": [
-      { ""key"": ""Cache-Control"", ""value"": ""public, max-age=3600"" } ] }
-  ]
-}
-";
     }
 }

@@ -2,7 +2,7 @@
 
 A 1v1 arena shooter in desert ruins at golden hour. First to three rounds.
 
-**Play in the browser at [sandglass.130-210-37-18.sslip.io](https://sandglass.130-210-37-18.sslip.io)**
+**Play in the browser at [nafiz001.github.io/sandglass](https://nafiz001.github.io/sandglass/)**
 (keyboard and mouse).
 Quick match pairs you with whoever else is online, and a bot steps in if
 nobody is. You can also practise against the bot straight away, or open a
@@ -86,8 +86,9 @@ A WebGL build connects to the deployed server unless the page has
 `?server=ws://host:port/ws`.
 
 **Sandglass → Build WebGL** writes `Builds/WebGL` with Brotli compression
-(plus a `vercel.json` with the headers those files need, if you host it on
-Vercel). **Sandglass → Export Arena For Server** rewrites
+and Unity's decompression fallback, so it runs from any static host. On
+every push the WebGL workflow builds it with GameCI and publishes it to
+GitHub Pages. **Sandglass → Export Arena For Server** rewrites
 `server/internal/arena/arena.json` after the map changes.
 
 Controls: WASD to move, Shift to sprint, Space to jump, right mouse to aim,
@@ -112,9 +113,9 @@ finding and killing an idle player, and private rooms.
 
 The server runs as a small distroless image
 (`ghcr.io/nafiz001/sandglass-server`) behind Caddy on an Oracle Cloud
-Ampere instance. The same Caddy site serves the WebGL build, sending
-Unity's Brotli files with `Content-Encoding: br`, so the page and the
-WebSocket share one origin. CI runs `go vet` and race-enabled tests before building
+Ampere instance, at `wss://sandglass.130-210-37-18.sslip.io/ws`. The game
+itself is static files on GitHub Pages' CDN, which connects to it across
+origins. CI runs `go vet` and race-enabled tests before building
 the image for amd64 and arm64.
 
 ## Credits

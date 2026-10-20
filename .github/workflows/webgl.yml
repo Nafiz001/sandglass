@@ -1,18 +1,22 @@
 name: WebGL
 
-# Builds the browser game with GameCI and copies it to the Oracle server,
-# where Caddy serves it beside the match server. Needs these repository
-# secrets; without them the workflow reports that and stops:
+# Builds the browser game with GameCI and publishes it to GitHub Pages.
+# The match server stays on the Oracle server; the game connects to it
+# across origins. Needs these repository secrets; without them the
+# workflow reports that and stops:
 #   UNITY_LICENSE   contents of a Unity Personal .ulf licence file
 #   UNITY_EMAIL     Unity account email
 #   UNITY_PASSWORD  Unity account password
-#   DEPLOY_SSH_KEY  a private key the server's ubuntu user accepts
 
 on:
   push:
     branches: [main]
     paths: ["Assets/**", "Packages/**", "ProjectSettings/**", ".github/workflows/webgl.yml"]
   workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -23,12 +27,11 @@ jobs:
       - id: secrets
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
-          if [ -n "$UNITY_LICENSE" ] && [ -n "$DEPLOY_SSH_KEY" ]; then
+          if [ -n "$UNITY_LICENSE" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::Unity or deploy secrets are not set; skipping the WebGL build."
+            echo "::notice::Unity secrets are not set; skipping the WebGL build."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -56,13 +59,19 @@ jobs:
           targetPlatform: WebGL
           buildMethod: Sandglass.EditorTools.BuildWebGL.Build
 
-      - name: Copy to the server
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          HOST: ubuntu@130.210.37.18
-        run: |
-          install -m 600 /dev/null ~/key && printf '%s\n' "$DEPLOY_SSH_KEY" > ~/key
-          tar czf - -C Builds/WebGL index.html Build | ssh -i ~/key -o StrictHostKeyChecking=accept-new "$HOST" '
-            set -e; d=/opt/portfolio/vernissage/home/sandglass
-            rm -rf $d.new && mkdir -p $d.new && tar xzf - -C $d.new
-            rm -rf $d.old; [ -d $d ] && mv $d $d.old; mv $d.new $d; rm -rf $d.old'
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: Builds/WebGL
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
