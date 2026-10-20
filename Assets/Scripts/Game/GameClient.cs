@@ -255,7 +255,7 @@ namespace Sandglass.Game
             local.Setup(this, cam);
 
             remote = new GameObject("Opponent").AddComponent<RemotePlayer>();
-            remote.Build(Models.Accent);
+            remote.Build(m.bots[1 - you]);
             remote.ResetNext();
 
             string opp = m.names[1 - you] + (m.bots[1 - you] ? "  [BOT]" : "");

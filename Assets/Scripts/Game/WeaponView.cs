@@ -8,10 +8,12 @@ namespace Sandglass.Game
     /// </summary>
     public class WeaponView : MonoBehaviour
     {
-        static readonly Vector3 HipPos = new Vector3(0.2f, -0.19f, 0.44f);
-        const float GunScale = 0.8f;
-        // Positions that put each gun's sight on the camera axis (sight height x GunScale).
-        static readonly Vector3[] AdsPos = { new Vector3(0f, -0.072f, 0.22f), new Vector3(0f, -0.047f, 0.28f) };
+        static readonly Vector3 HipPos = new Vector3(0.21f, -0.2f, 0.34f);
+        // At the hip the gun is turned in and rolled so its side shows; aiming squares it up.
+        static readonly Vector3 HipTilt = new Vector3(-2f, -7f, -10f);
+        // Each gun's top edge sits at its holder's origin (see Models.KitGun),
+        // so aiming puts that edge just under the camera axis.
+        static readonly Vector3[] AdsPos = { new Vector3(0f, -0.018f, 0.16f), new Vector3(0f, -0.016f, 0.24f) };
 
         Transform sway, kick;
         readonly Transform[] guns = new Transform[2];
@@ -40,8 +42,7 @@ namespace Sandglass.Game
             {
                 var holder = new GameObject("Holder" + i).transform;
                 holder.SetParent(kick, false);
-                holder.localScale = Vector3.one * GunScale;
-                muzzles[i] = Models.Gun(holder, i, true);
+                muzzles[i] = Models.KitGun(holder, i);
                 guns[i] = holder;
             }
             flash = new GameObject("Flash").transform;
@@ -110,7 +111,8 @@ namespace Sandglass.Game
             swayOffset = Vector2.ClampMagnitude(swayOffset, 0.03f);
 
             var pos = Vector3.Lerp(HipPos, AdsPos[current], adsBlend) + bob + (Vector3)(swayOffset * (1f - 0.7f * adsBlend));
-            var rot = Quaternion.Euler(-swayOffset.y * 120f, swayOffset.x * 120f, swayOffset.x * 60f);
+            var rot = Quaternion.Euler(HipTilt * (1f - adsBlend)) *
+                      Quaternion.Euler(-swayOffset.y * 120f, swayOffset.x * 120f, swayOffset.x * 60f);
 
             // Reload: dip and roll the gun.
             float rk = (Time.time - reloadStart) / reloadLength;

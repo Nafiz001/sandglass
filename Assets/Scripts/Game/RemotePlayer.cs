@@ -18,23 +18,21 @@ namespace Sandglass.Game
         }
 
         readonly List<Sample> buffer = new List<Sample>();
-        AvatarRig rig;
-        int shownWeapon;
+        CharacterView view;
         bool alive = true;
-        float deathT;
-        float walkPhase;
+        int hp = 100;
         Vector3 lastPos;
-        float yawShown;
+        float yawShown, pitchShown, speed;
+        bool pendingSnap;
 
-        public Vector3 MuzzlePos => rig.Muzzle.position;
+        public Vector3 MuzzlePos => view.Muzzle;
         public bool Alive => alive;
 
-        public void Build(Color accent)
+        /// <param name="bot">bots wear the kit's enemy character, people its soldier</param>
+        public void Build(bool bot)
         {
-            rig = Models.Soldier(transform, accent);
+            view = new CharacterView(transform, bot);
         }
-
-        bool pendingSnap;
 
         /// <summary>The next snapshot teleports instead of interpolating (new round).</summary>
         public void ResetNext() => pendingSnap = true;
@@ -49,27 +47,22 @@ namespace Sandglass.Game
             if (buffer.Count > 0 && tick <= buffer[buffer.Count - 1].tick) return;
             buffer.Add(new Sample { tick = tick, pos = Proto.V(s.p), yaw = s.yaw, pitch = s.pitch });
             if (buffer.Count > 40) buffer.RemoveAt(0);
-            if (s.w != shownWeapon) ShowWeapon(s.w);
-            if (alive && !s.alive) deathT = 0f;
+            view.SetWeapon(s.w);
+            if (s.alive && s.hp < hp) view.Hit();
+            if (alive && !s.alive) view.Die();
+            hp = s.hp;
             alive = s.alive;
         }
 
-        public void Snap(Vector3 pos, float yaw)
+        void Snap(Vector3 pos, float yaw)
         {
             buffer.Clear();
             transform.position = lastPos = pos;
             yawShown = yaw;
             transform.rotation = Quaternion.Euler(0, yaw, 0);
             alive = true;
-            rig.Root.localRotation = Quaternion.identity;
-            rig.Root.localPosition = Vector3.zero;
-        }
-
-        void ShowWeapon(int w)
-        {
-            shownWeapon = w;
-            for (int i = rig.Gun.childCount - 1; i >= 0; i--) Destroy(rig.Gun.GetChild(i).gameObject);
-            rig.Muzzle = Models.Gun(rig.Gun, w, false);
+            hp = 100;
+            view.Revive();
         }
 
         /// <param name="renderTick">fractional server tick to display</param>
@@ -86,7 +79,7 @@ namespace Sandglass.Game
             float t = b.tick > a.tick ? Mathf.Clamp01((renderTick - a.tick) / (b.tick - a.tick)) : 1f;
             var pos = Vector3.Lerp(a.pos, b.pos, t);
             float yaw = Mathf.LerpAngle(a.yaw, b.yaw, t);
-            float pitch = Mathf.Lerp(a.pitch, b.pitch, t);
+            pitchShown = Mathf.Lerp(a.pitch, b.pitch, t);
 
             float dt = Mathf.Max(Time.deltaTime, 1e-4f);
             var vel = (pos - lastPos) / dt;
@@ -94,22 +87,14 @@ namespace Sandglass.Game
             transform.position = pos;
             yawShown = Mathf.LerpAngle(yawShown, yaw, dt * 20f);
             transform.rotation = Quaternion.Euler(0, yawShown, 0);
+            speed = Mathf.Lerp(speed, new Vector3(vel.x, 0, vel.z).magnitude, dt * 10f);
+            view.Animate(speed, alive);
+        }
 
-            float speed = new Vector3(vel.x, 0, vel.z).magnitude;
-            walkPhase += dt * Mathf.Lerp(0f, 10f, Mathf.Clamp01(speed / 6f));
-            float swing = Mathf.Sin(walkPhase) * 32f * Mathf.Clamp01(speed / 4f);
-            rig.LegL.localRotation = Quaternion.Euler(swing, 0, 0);
-            rig.LegR.localRotation = Quaternion.Euler(-swing, 0, 0);
-            rig.Torso.localRotation = Quaternion.Euler(pitch * 0.45f, 0, Mathf.Sin(walkPhase * 0.5f) * 2f * Mathf.Clamp01(speed / 4f));
-            rig.Head.localRotation = Quaternion.Euler(pitch * 0.45f, 0, 0);
-
-            if (!alive)
-            {
-                deathT = Mathf.Min(deathT + dt * 2.2f, 1f);
-                float e = 1f - (1f - deathT) * (1f - deathT);
-                rig.Root.localRotation = Quaternion.Euler(-85f * e, 0, 12f * e);
-                rig.Root.localPosition = new Vector3(0, 0.15f * e, -0.2f * e);
-            }
+        // After the Animation component has posed the skeleton this frame.
+        void LateUpdate()
+        {
+            if (alive) view.AimPitch(pitchShown);
         }
     }
 }

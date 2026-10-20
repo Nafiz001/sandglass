@@ -68,9 +68,11 @@ comes from the west so neither player looks into it. The surfaces use a
 hand-written URP shader (`Assets/Art/Shaders/SandglassTerrain.shader`)
 that draws sandstone strata, wind ripples, grain and bump from world
 position, so the big blocks never show stretched textures and the build
-carries no texture files. The soldiers and guns are built from
-primitives in code, and every sound (gunshots, hit markers, wind) is
-synthesised at startup.
+carries no texture files. Opponents are Quaternius's animated toon
+characters, imported with glTFast: people play as the soldier and the bot
+as the red-helmeted enemy, with aiming, running, flinching and dying
+animations and the torso bent to where they aim. Every sound (gunshots,
+hit markers, wind) is synthesised at startup.
 
 ## Running it
 
@@ -117,5 +119,7 @@ the image for amd64 and arm64.
 
 ## Credits
 
-Rajdhani font by the Indian Type Foundry (SIL Open Font License). Everything
-else, from the models and shader to the sounds, was made for this project.
+Characters and guns from the [Toon Shooter Game Kit](https://quaternius.com/packs/toonshootergamekit.html)
+by Quaternius (CC0). Rajdhani font by the Indian Type Foundry (SIL Open
+Font License). The arena, shader, effects and sounds were made for this
+project.
