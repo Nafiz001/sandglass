@@ -1,0 +1,65 @@
+name: WebGL
+
+# Builds the browser game with GameCI and deploys it to Vercel. Needs these
+# repository secrets; without them the workflow reports that and stops:
+#   UNITY_LICENSE   contents of a Unity Personal .ulf licence file
+#   UNITY_EMAIL     Unity account email
+#   UNITY_PASSWORD  Unity account password
+#   VERCEL_TOKEN    a Vercel access token
+#   VERCEL_ORG_ID, VERCEL_PROJECT_ID   from .vercel/project.json after `vercel link`
+
+on:
+  push:
+    branches: [main]
+    paths: ["Assets/**", "Packages/**", "ProjectSettings/**", ".github/workflows/webgl.yml"]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      ready: ${{ steps.secrets.outputs.ready }}
+    steps:
+      - id: secrets
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -n "$UNITY_LICENSE" ] && [ -n "$VERCEL_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Unity or Vercel secrets are not set; skipping the WebGL build."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-WebGL-${{ hashFiles('Packages/packages-lock.json', 'ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: Library-WebGL-
+
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: WebGL
+          buildMethod: Sandglass.EditorTools.BuildWebGL.Build
+
+      - name: Deploy to Vercel
+        working-directory: Builds/WebGL
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN"

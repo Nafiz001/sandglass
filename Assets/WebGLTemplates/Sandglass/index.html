@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+  <title>{{{ PRODUCT_NAME }}} - 1v1 arena shooter</title>
+  <meta name="description" content="Sandglass: a 1v1 arena shooter in the desert ruins at golden hour. Unity WebGL client, authoritative Go match server.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --ink: #fbf3e4; --amber: #ffb554; --bg: #1a120c; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+    body { font-family: Rajdhani, system-ui, sans-serif; color: var(--ink); }
+    #unity-canvas { width: 100vw; height: 100vh; display: block; background: var(--bg); }
+    #loader {
+      position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+      padding: 0 8vw; gap: 18px;
+      background: radial-gradient(120% 90% at 85% 15%, #f2a04a 0%, #9a4d1f 38%, #2a160b 75%, #140c07 100%);
+      transition: opacity .6s ease;
+    }
+    #loader h1 { margin: 0; font-size: clamp(56px, 11vw, 150px); letter-spacing: .02em; line-height: .9; font-weight: 700; text-shadow: 0 6px 30px rgba(0,0,0,.35); }
+    #loader p { margin: 0; font-size: clamp(16px, 2vw, 24px); color: var(--amber); font-weight: 700; letter-spacing: .12em; }
+    #bar { width: min(460px, 80vw); height: 6px; background: rgba(255,255,255,.15); margin-top: 18px; }
+    #fill { height: 100%; width: 0; background: var(--amber); transition: width .15s linear; }
+    #status { font-size: 16px; color: rgba(251,243,228,.7); letter-spacing: .08em; font-weight: 500; }
+    #warning { position: fixed; left: 8vw; bottom: 6vh; max-width: 80vw; font-size: 18px; color: #ff8a73; }
+    #mobile { display: none; }
+    @media (pointer: coarse) { #mobile { display: block; } }
+  </style>
+</head>
+<body>
+  <canvas id="unity-canvas" tabindex="-1"></canvas>
+  <div id="loader">
+    <h1>SANDGLASS</h1>
+    <p>1V1 ARENA SHOOTER &middot; FIRST TO THREE ROUNDS</p>
+    <div id="bar"><div id="fill"></div></div>
+    <div id="status">LOADING THE DESERT&hellip;</div>
+    <div id="mobile" style="color:#ff8a73;font-size:18px">Sandglass needs a keyboard and mouse.</div>
+  </div>
+  <div id="warning"></div>
+  <script>
+    const canvas = document.querySelector("#unity-canvas");
+    const fill = document.querySelector("#fill");
+    const status = document.querySelector("#status");
+    const loader = document.querySelector("#loader");
+    function warn(msg, type) {
+      if (type === "error") document.querySelector("#warning").textContent = msg;
+      else console.warn(msg);
+    }
+    const buildUrl = "Build";
+    const config = {
+      arguments: [],
+      dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+      frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+      workerUrl: buildUrl + "/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+      codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+#endif
+#if MEMORY_FILENAME
+      memoryUrl: buildUrl + "/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+      symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
+#endif
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+      productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+      productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+      showBanner: warn,
+      devicePixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+    };
+    const script = document.createElement("script");
+    script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
+    script.onload = () => {
+      createUnityInstance(canvas, config, (p) => {
+        fill.style.width = (100 * p) + "%";
+        if (p >= 0.9) status.textContent = "RAISING THE RUINS…";
+      }).then(() => {
+        loader.style.opacity = 0;
+        setTimeout(() => loader.remove(), 700);
+        canvas.focus();
+      }).catch((e) => warn(String(e), "error"));
+    };
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>
