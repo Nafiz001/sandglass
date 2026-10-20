@@ -8,10 +8,11 @@ import (
 
 const (
 	botSpeed       = 4.6
-	botTurnRate    = 300.0 // degrees per second
-	botReaction    = 0.45  // seconds from first sight to first shot
-	botAimSigma    = 2.0   // degrees of aim error (one standard deviation)
+	botTurnRate    = 220.0 // degrees per second
+	botReaction    = 0.7   // seconds from first sight to first shot
+	botAimSigma    = 4.0   // degrees of aim error (one standard deviation)
 	botRepathEvery = 1.0
+	botPushRange   = 13.0 // beyond this the bot closes in while it fires
 )
 
 // Bot drives a Player on the server. It plays by the same rules as a human:
@@ -59,12 +60,11 @@ func (b *Bot) think() {
 	if visible {
 		if b.seenSince < 0 {
 			b.seenSince = m.now
-			b.burstLeft = 4 + m.rng.IntN(4)
+			b.burstLeft = 3 + m.rng.IntN(3)
 		}
 		b.lastSeen, b.lastSeenT = t.Pos, m.now
-		b.path = nil
 		b.turnTowards(aimAt)
-		b.fight(t, aimAt)
+		b.fight(t, aimAt, aimAt.Y-t.Pos.Y < 1.5)
 		return
 	}
 
@@ -93,10 +93,21 @@ func (b *Bot) think() {
 	}
 }
 
-// fight strafes between nearby cells and fires controlled bursts.
-func (b *Bot) fight(t *Player, aimAt geom.Vec3) {
+// fight fires controlled bursts. Up close with the target's body in view
+// it strafes between nearby cells; when the target is far off or only its
+// head shows over cover, it keeps walking in so the fight cannot stall.
+func (b *Bot) fight(t *Player, aimAt geom.Vec3, bodyVisible bool) {
 	m, p := b.m, b.p
-	if m.now >= b.strafeAt {
+	if !bodyVisible || p.Pos.HorizDist(t.Pos) > botPushRange {
+		if m.now >= b.repathAt || len(b.path) == 0 {
+			b.path = m.World.Nav.Path(p.Pos, t.Pos)
+			b.repathAt = m.now + botRepathEvery
+		}
+		if len(b.path) > 0 && b.walk(b.path[0]) {
+			b.path = b.path[1:]
+		}
+	} else if m.now >= b.strafeAt || len(b.path) > 0 {
+		b.path = nil
 		b.strafe = m.World.Nav.RandomWalkable(p.Pos, 2.5, m.rng)
 		knee := geom.V(0, 0.5, 0)
 		if !m.World.LineOfSight(p.Pos.Add(knee), b.strafe.Add(knee)) {
@@ -104,7 +115,9 @@ func (b *Bot) fight(t *Player, aimAt geom.Vec3) {
 		}
 		b.strafeAt = m.now + 0.6 + m.rng.Float64()*0.6
 	}
-	b.walk(b.strafe)
+	if len(b.path) == 0 {
+		b.walk(b.strafe)
+	}
 
 	if p.Mag[p.Weapon] == 0 {
 		if p.Reserve[p.Weapon] == 0 && p.Weapon == Rifle {
@@ -125,8 +138,8 @@ func (b *Bot) fight(t *Player, aimAt geom.Vec3) {
 	m.shoot(p, p.Eye(), dir, p.Weapon, m.tick)
 	b.burstLeft--
 	if b.burstLeft <= 0 {
-		b.pauseTill = m.now + 0.3 + m.rng.Float64()*0.3
-		b.burstLeft = 4 + m.rng.IntN(4)
+		b.pauseTill = m.now + 0.5 + m.rng.Float64()*0.4
+		b.burstLeft = 3 + m.rng.IntN(3)
 	}
 }
 
